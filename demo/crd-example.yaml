@@ -1,0 +1,102 @@
+# Example Custom Resource Definition and instances
+# These are optional - they demonstrate how CRDs are handled
+---
+# CustomResourceDefinition for SimpleResource
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: simpleresources.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: SimpleResource
+    plural: simpleresources
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              message:
+                type: string
+              value:
+                type: integer
+---
+# SimpleResource instances (enemies in the game)
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-1
+  namespace: default
+spec:
+  message: "Enemy 1"
+  value: 10
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-2
+  namespace: default
+spec:
+  message: "Enemy 2"
+  value: 20
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-3
+  namespace: default
+spec:
+  message: "Enemy 3"
+  value: 30
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-4
+  namespace: default
+spec:
+  message: "Enemy 4"
+  value: 40
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-5
+  namespace: default
+spec:
+  message: "Enemy 5"
+  value: 50
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-6
+  namespace: default
+spec:
+  message: "Enemy 6"
+  value: 60
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-7
+  namespace: default
+spec:
+  message: "Enemy 7"
+  value: 70
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-8
+  namespace: default
+spec:
+  message: "Enemy 8"
+  value: 80

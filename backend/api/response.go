@@ -1,32 +1,85 @@
 package api
 
-// Namespace represents a K8s namespace
-type Namespace struct {
-	Name string `json:"name"`
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/m1xxos/namespace-invaders/k8s"
+)
+
+// GetNamespacesHandler returns list of available namespaces
+func GetNamespacesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	namespaces, err := k8s.GetNamespaces()
+	if err != nil {
+		log.Printf("Error getting namespaces: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(k8s.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(namespaces)
 }
 
-// Resource represents a K8s resource
-type Resource struct {
-	UID        string `json:"uid"`
-	Name       string `json:"name"`
-	Namespace  string `json:"namespace"`
-	Kind       string `json:"kind"`
-	APIVersion string `json:"apiVersion"`
-	Status     string `json:"status,omitempty"`
-	Age        string `json:"age,omitempty"`
-	// For ReplicaSet: list of pod UIDs that belong to it
-	OwnerPods []string `json:"ownerPods,omitempty"`
+// GetResourcesHandler returns all resources in a namespace
+func GetResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	namespace := r.URL.Query().Get("namespace")
+	if namespace == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(k8s.ErrorResponse{Error: "namespace parameter required"})
+		return
+	}
+
+	resources, err := k8s.GetResourcesInNamespace(namespace)
+	if err != nil {
+		log.Printf("Error getting resources: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(k8s.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resources)
 }
 
-// ErrorResponse represents an error response
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
+// DeleteResourceHandler deletes a resource from the cluster
+func DeleteResourceHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-// DeleteRequest represents a delete request
-type DeleteRequest struct {
-	UID       string `json:"uid"`
-	Namespace string `json:"namespace"`
-	Kind      string `json:"kind"`
-	Name      string `json:"name"`
+	var req k8s.DeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(k8s.ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+
+	if err := k8s.DeleteResourceWithForce(req.Namespace, req.Kind, req.Name); err != nil {
+		log.Printf("Error deleting resource: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(k8s.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 }

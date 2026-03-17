@@ -7,7 +7,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // DeleteResourceWithForce deletes a resource by kind and name with force option
@@ -55,16 +55,14 @@ func deleteCustomResource(ctx context.Context, namespace, kind, name string) err
 
 	for _, group := range crdGroups {
 		for _, version := range []string{"v1", "v1alpha1", "v1beta1"} {
-			gvr := metav1.GroupVersionKind{
-				Group:   group,
-				Version: version,
-				Kind:    kind,
+			gvr := schema.GroupVersionResource{
+				Group:    group,
+				Version:  version,
+				Resource: pluralizeKind(kind),
 			}
 
 			// Try to delete
-			unversioned := dynamicClient.Resource(
-				gvr.GroupVersion().WithResource(pluralizeKind(kind)),
-			).Namespace(namespace)
+			unversioned := dynamicClient.Resource(gvr).Namespace(namespace)
 
 			err := unversioned.Delete(ctx, name, *metav1.NewDeleteOptions(0))
 			if err == nil {
@@ -83,7 +81,7 @@ func pluralizeKind(kind string) string {
 	// Simple pluralization rules
 	lowerKind := kind
 	if len(lowerKind) > 0 {
-		lowerKind = string(lowerKind[0] + 32) + lowerKind[1:]
+		lowerKind = string(lowerKind[0]+32) + lowerKind[1:]
 	}
 
 	switch {

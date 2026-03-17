@@ -2,19 +2,16 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
-	"github.com/m1xxos/namespace-invaders/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
 )
 
 // GetNamespaces returns list of all namespaces
-func GetNamespaces() ([]api.Namespace, error) {
+func GetNamespaces() ([]Namespace, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -23,19 +20,19 @@ func GetNamespaces() ([]api.Namespace, error) {
 		return nil, err
 	}
 
-	result := make([]api.Namespace, 0)
+	result := make([]Namespace, 0)
 	for _, ns := range namespaces.Items {
-		result = append(result, api.Namespace{Name: ns.Name})
+		result = append(result, Namespace{Name: ns.Name})
 	}
 	return result, nil
 }
 
 // GetResourcesInNamespace returns all resources in a namespace
-func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
+func GetResourcesInNamespace(namespace string) ([]Resource, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resources := make([]api.Resource, 0)
+	resources := make([]Resource, 0)
 
 	// Get Pods
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
@@ -56,7 +53,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 					continue
 				}
 			}
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(p.UID),
 				Name:      p.Name,
 				Namespace: p.Namespace,
@@ -65,26 +62,67 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		}
 	}
 
-	// Get Deployments
+	// Get Deployments and ReplicaSets
 	deployments, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		log.Printf("Error getting deployments: %v", err)
-	} else {
+	}
+
+	replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Printf("Error getting replicasets: %v", err)
+	}
+
+	deploymentOwnerPods := map[string][]string{}
+	if deployments != nil && replicaSets != nil && pods != nil {
+		rsToDeployment := map[string]string{}
+		for _, rs := range replicaSets.Items {
+			for _, owner := range rs.OwnerReferences {
+				if owner.Kind == "Deployment" {
+					rsToDeployment[rs.Name] = owner.Name
+					break
+				}
+			}
+		}
+
+		for _, p := range pods.Items {
+			for _, owner := range p.OwnerReferences {
+				if owner.Kind == "ReplicaSet" {
+					if deploymentName, ok := rsToDeployment[owner.Name]; ok {
+						deploymentOwnerPods[deploymentName] = append(
+							deploymentOwnerPods[deploymentName],
+							string(p.UID),
+						)
+					}
+				}
+			}
+		}
+	}
+
+	if deployments != nil {
 		for _, d := range deployments.Items {
-			resources = append(resources, api.Resource{
+			ownerPods := []string{}
+			if podsForDeployment, ok := deploymentOwnerPods[d.Name]; ok {
+				seen := map[string]bool{}
+				for _, uid := range podsForDeployment {
+					if !seen[uid] {
+						seen[uid] = true
+						ownerPods = append(ownerPods, uid)
+					}
+				}
+			}
+
+			resources = append(resources, Resource{
 				UID:       string(d.UID),
 				Name:      d.Name,
 				Namespace: d.Namespace,
 				Kind:      "Deployment",
+				OwnerPods: ownerPods,
 			})
 		}
 	}
 
-	// Get ReplicaSets
-	replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		log.Printf("Error getting replicasets: %v", err)
-	} else {
+	if replicaSets != nil {
 		for _, rs := range replicaSets.Items {
 			// Skip ReplicaSets that belong to a Deployment
 			if len(rs.OwnerReferences) > 0 {
@@ -100,10 +138,9 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 				}
 			}
 
-			// Get the pods owned by this ReplicaSet
+			// Get pods owned by this ReplicaSet
 			ownerPods := []string{}
-			pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-			if err == nil {
+			if pods != nil {
 				for _, p := range pods.Items {
 					for _, owner := range p.OwnerReferences {
 						if owner.Kind == "ReplicaSet" && owner.Name == rs.Name {
@@ -114,7 +151,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 				}
 			}
 
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(rs.UID),
 				Name:      rs.Name,
 				Namespace: rs.Namespace,
@@ -130,7 +167,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		log.Printf("Error getting statefulsets: %v", err)
 	} else {
 		for _, ss := range statefulSets.Items {
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(ss.UID),
 				Name:      ss.Name,
 				Namespace: ss.Namespace,
@@ -145,7 +182,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		log.Printf("Error getting configmaps: %v", err)
 	} else {
 		for _, cm := range configMaps.Items {
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(cm.UID),
 				Name:      cm.Name,
 				Namespace: cm.Namespace,
@@ -160,7 +197,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		log.Printf("Error getting secrets: %v", err)
 	} else {
 		for _, s := range secrets.Items {
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(s.UID),
 				Name:      s.Name,
 				Namespace: s.Namespace,
@@ -175,7 +212,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		log.Printf("Error getting services: %v", err)
 	} else {
 		for _, svc := range services.Items {
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(svc.UID),
 				Name:      svc.Name,
 				Namespace: svc.Namespace,
@@ -190,7 +227,7 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 		log.Printf("Error getting ingresses: %v", err)
 	} else {
 		for _, ing := range ingresses.Items {
-			resources = append(resources, api.Resource{
+			resources = append(resources, Resource{
 				UID:       string(ing.UID),
 				Name:      ing.Name,
 				Namespace: ing.Namespace,
@@ -211,59 +248,57 @@ func GetResourcesInNamespace(namespace string) ([]api.Resource, error) {
 }
 
 // getCustomResources discovers and fetches all custom resources in a namespace
-func getCustomResources(namespace string) ([]api.Resource, error) {
+func getCustomResources(namespace string) ([]Resource, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resources := make([]api.Resource, 0)
+	resources := make([]Resource, 0)
 
-	// Get discovery client
-	discClient, err := discovery.NewDiscoveryClientForConfig(
-		clientset.Discovery().RESTClient().(*rest.RESTClient).(*rest.RESTConfig),
-	)
-	if err != nil {
-		// If dynamic discovery fails, just return empty
-		return resources, nil
-	}
+	// Try to discover API groups using the discovery client
+	discoveryClient := clientset.Discovery()
 
 	// Get all API groups
-	apiGroups, err := discClient.ServerGroups()
+	apiLists, err := discoveryClient.ServerGroups()
 	if err != nil {
+		log.Printf("Error discovering API groups: %v", err)
 		return resources, nil
 	}
 
-	// Known CRD groups to check
-	crdGroups := make(map[string]bool)
-	for _, g := range apiGroups.Groups {
-		if g.Name != "apps" && g.Name != "" && g.Name != "v1" &&
-			!isCoreName(g.Name) {
-			crdGroups[g.Name] = true
+	// Process each API group
+	for _, group := range apiLists.Groups {
+		// Skip core Kubernetes groups
+		if isCoreName(group.Name) {
+			continue
 		}
-	}
 
-	// Try to get resources from CRD groups
-	for groupName := range crdGroups {
-		for _, version := range apiGroups.Groups {
-			if version.Name == groupName && len(version.Versions) > 0 {
-				gvr := schema.GroupVersionResource{
-					Group:    groupName,
-					Version:  version.Versions[0].Version,
-					Resource: findResourceName(groupName, version.Versions[0].Version),
-				}
+		// Get preferred version
+		if len(group.Versions) == 0 {
+			continue
+		}
 
-				dynamicResource := dynamicClient.Resource(gvr).Namespace(namespace)
-				list, err := dynamicResource.List(ctx, metav1.ListOptions{})
-				if err == nil && list != nil {
-					for _, item := range list.Items {
-						kind := extractKind(&item)
-						resources = append(resources, api.Resource{
-							UID:       string(item.GetUID()),
-							Name:      item.GetName(),
-							Namespace: item.GetNamespace(),
-							Kind:      kind,
-						})
-					}
-				}
+		version := group.Versions[0]
+		gvr := schema.GroupVersionResource{
+			Group:    group.Name,
+			Version:  version.Version,
+			Resource: pluralizeKind("resource"),
+		}
+
+		// Try to list resources from this group
+		dynamicResource := dynamicClient.Resource(gvr).Namespace(namespace)
+		list, err := dynamicResource.List(ctx, metav1.ListOptions{})
+		if err != nil {
+			continue
+		}
+
+		if list != nil {
+			for _, item := range list.Items {
+				kind := extractKind(&item)
+				resources = append(resources, Resource{
+					UID:       string(item.GetUID()),
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+					Kind:      kind,
+				})
 			}
 		}
 	}
@@ -274,15 +309,15 @@ func getCustomResources(namespace string) ([]api.Resource, error) {
 // isCoreName checks if a group name is a core K8s group
 func isCoreName(name string) bool {
 	coreName := map[string]bool{
-		"":                              true,
-		"apps":                          true,
-		"batch":                         true,
-		"networking.k8s.io":             true,
-		"rbac.authorization.k8s.io":     true,
-		"storage.k8s.io":                true,
-		"policy":                        true,
-		"autoscaling":                   true,
-		"extensions":                    true,
+		"":                          true,
+		"apps":                      true,
+		"batch":                     true,
+		"networking.k8s.io":         true,
+		"rbac.authorization.k8s.io": true,
+		"storage.k8s.io":            true,
+		"policy":                    true,
+		"autoscaling":               true,
+		"extensions":                true,
 	}
 	return coreName[name]
 }
@@ -309,5 +344,3 @@ func extractKind(obj *unstructured.Unstructured) string {
 	}
 	return "UnknownResource"
 }
-
-import "k8s.io/client-go/rest"

@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    ports:
+      - '8080:8080'
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ./demo/kubeconfig.internal:/root/.kube/config:ro
+    command: /app/backend/main
+    networks:
+      - invaders
+      - kind
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend/src:/app/src:cached
+      - ./frontend/public:/app/public:cached
+      - ./frontend/index.html:/app/index.html:cached
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080/api
+      - VITE_PROXY_TARGET=http://backend:8080
+      - NODE_ENV=development
+    command: npm run dev
+    depends_on:
+      - backend
+    networks:
+      - invaders
+
+networks:
+  invaders:
+    driver: bridge
+  kind:
+    external: true
+

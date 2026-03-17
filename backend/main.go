@@ -22,7 +22,7 @@ func main() {
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
-	
+
 	// CORS middleware
 	handler := corsMiddleware(mux)
 

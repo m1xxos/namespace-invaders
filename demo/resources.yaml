@@ -1,0 +1,223 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+---
+# ConfigMap example
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  config.yaml: |
+    debug: true
+    log_level: info
+---
+# Secret example
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: default
+type: Opaque
+stringData:
+  api-key: "secret-key-123"
+  password: "super-secret-password"
+---
+# Deployment example
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+# Standalone ReplicaSet example
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: frontend-rs
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+      - name: php-redis
+        image: gcr.io/google_samples/gb-frontend:v3
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+# StatefulSet example
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-statefulset
+  namespace: default
+spec:
+  serviceName: redis
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:6.0
+        ports:
+        - containerPort: 6379
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+# Service example
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: default
+spec:
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+# Ingress example  
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: default
+spec:
+  rules:
+  - host: example.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config-1
+  namespace: default
+data:
+  mode: arcade
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config-2
+  namespace: default
+data:
+  mode: practice
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config-3
+  namespace: default
+data:
+  mode: challenge
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config-4
+  namespace: default
+data:
+  mode: survival
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-1
+  namespace: default
+data:
+  theme: neon
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-2
+  namespace: default
+data:
+  theme: retro
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: game-secret-1
+  namespace: default
+type: Opaque
+stringData:
+  token: alpha-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: game-secret-2
+  namespace: default
+type: Opaque
+stringData:
+  token: beta-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: game-secret-3
+  namespace: default
+type: Opaque
+stringData:
+  token: gamma-token
