@@ -40,6 +40,7 @@ export interface OrbitalPod {
   uid: string
   name: string
   mesh: THREE.Mesh
+  label: THREE.Sprite
   angle: number
   radius: number
   isRecovering: boolean
@@ -212,10 +213,45 @@ function createResourceLabel(kind: string, name: string): THREE.Sprite {
   return sprite
 }
 
+function createGuardLabel(name: string): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  canvas.width = 260
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+
+  if (!ctx) {
+    return new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffffff }))
+  }
+
+  const text = `pod/${shortenResourceName(name, 12)}`
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = 'rgba(10, 14, 39, 0.7)'
+  ctx.fillRect(0, 6, canvas.width, 50)
+  ctx.strokeStyle = 'rgba(255, 102, 119, 0.85)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(1, 7, canvas.width - 2, 48)
+  ctx.fillStyle = '#ffe6ea'
+  ctx.font = 'bold 22px monospace'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+  })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(2.8, 0.72, 1)
+  return sprite
+}
+
 function createOrbitalPods(enemy: Enemy, podUids: string[], mode: GuardMode) {
   enemy.orbitalPods = []
   const uniquePodUids = Array.from(new Set(podUids))
-  enemy.maxOrbitalPods = mode === 'deployment' ? 4 : 5
+  enemy.maxOrbitalPods = mode === 'deployment' ? uniquePodUids.length : 8
 
   const numPodsToShow = Math.min(uniquePodUids.length, enemy.maxOrbitalPods)
   const radius = mode === 'deployment' ? 3.4 : 2.5
@@ -236,12 +272,17 @@ function createOrbitalPods(enemy: Enemy, podUids: string[], mode: GuardMode) {
     const angle = (i / numPodsToShow) * Math.PI * 2
     podMesh.position.set(radius * Math.cos(angle), 0, radius * Math.sin(angle))
 
+    const label = createGuardLabel(uniquePodUids[i])
+    label.position.set(0, podSize + 0.55, 0)
+    podMesh.add(label)
+
     enemy.mesh.add(podMesh)
 
     enemy.orbitalPods.push({
       uid: uniquePodUids[i],
-      name: `pod-${i}`,
+      name: uniquePodUids[i],
       mesh: podMesh,
+      label,
       angle,
       radius,
       isRecovering: false,
@@ -260,7 +301,10 @@ export function updateEnemies(
     const dir = movement.rowDirections[enemy.row] ?? 1
     enemy.position.x += dir * movement.horizontalSpeed
 
-    if (enemy.position.x >= movement.horizontalBounds || enemy.position.x <= -movement.horizontalBounds) {
+    if (
+      enemy.position.x >= movement.horizontalBounds ||
+      enemy.position.x <= -movement.horizontalBounds
+    ) {
       touchedRows.add(enemy.row)
       enemy.position.x = Math.max(-movement.horizontalBounds, Math.min(movement.horizontalBounds, enemy.position.x))
     }
@@ -311,6 +355,15 @@ export function removeEnemy(enemy: Enemy, scene: THREE.Scene) {
       spriteMaterial.map.dispose()
     }
     spriteMaterial.dispose()
+  }
+  if (enemy.orbitalPods) {
+    for (const pod of enemy.orbitalPods) {
+      const podLabelMaterial = pod.label.material as THREE.SpriteMaterial
+      if (podLabelMaterial.map) {
+        podLabelMaterial.map.dispose()
+      }
+      podLabelMaterial.dispose()
+    }
   }
   if (enemy.mesh.geometry) {
     enemy.mesh.geometry.dispose()

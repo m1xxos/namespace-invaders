@@ -27,7 +27,6 @@ export class Game {
   private namespace: string
   private isRunning = false
   private frameCount = 0
-  private spawnTimer = 0
   private enemyHorizontalSpeed = DEFAULT_SETTINGS.enemySpeed
   private enemyHorizontalBounds = 22
   private enemyStepTowardPlayer = 0.55
@@ -54,26 +53,24 @@ export class Game {
     // Load initial resources
     try {
       const resources = await getResources(this.namespace)
-      const rows = Math.max(3, Math.min(6, Math.ceil(resources.length / 4)))
-      const placed: Array<{ x: number; z: number; row: number }> = []
+      const shuffledResources = [...resources]
+      for (let i = shuffledResources.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffledResources[i], shuffledResources[j]] = [shuffledResources[j], shuffledResources[i]]
+      }
 
-      for (let i = 0; i < resources.length; i++) {
-        const resource = resources[i]
-        const row = Math.floor(Math.random() * rows)
+      const columns = 7
+      const spacingX = 5.2
+      const spacingZ = 3.2
+      const originX = -((columns - 1) * spacingX) / 2
+      const originZ = -7
 
-        let spawnX = 0
-        let spawnZ = 0
-        let attempts = 0
-        do {
-          spawnX = (Math.random() - 0.5) * 40
-          spawnZ = -6 - row*4.2 + (Math.random() - 0.5) * 2.4
-          attempts++
-        } while (
-          attempts < 24 &&
-          placed.some((p) => p.row === row && Math.abs(p.x - spawnX) < 2.5 && Math.abs(p.z - spawnZ) < 1.8)
-        )
-
-        placed.push({ x: spawnX, z: spawnZ, row })
+      for (let i = 0; i < shuffledResources.length; i++) {
+        const resource = shuffledResources[i]
+        const row = Math.floor(i / columns)
+        const col = i % columns
+        const spawnX = originX + col * spacingX
+        const spawnZ = originZ - row * spacingZ
 
         if (this.rowDirections[row] === undefined) {
           this.rowDirections[row] = row % 2 === 0 ? 1 : -1
@@ -98,7 +95,6 @@ export class Game {
     if (!this.isRunning) return
 
     this.frameCount++
-    this.spawnTimer++
 
     // Update game state
     this.player.update()
@@ -146,36 +142,40 @@ export class Game {
       for (let j = this.enemies.length - 1; j >= 0; j--) {
         const enemy = this.enemies[j]
 
+        // Guard pods block shots physically for deployments and replicasets.
+        if (enemy.orbitalPods && enemy.orbitalPods.length > 0) {
+          let consumedByGuard = false
+          for (const pod of enemy.orbitalPods) {
+            if (pod.isRecovering) {
+              continue
+            }
+
+            const podWorldPos = new THREE.Vector3()
+            pod.mesh.getWorldPosition(podWorldPos)
+            const podDistance = projectile.position.distanceTo(podWorldPos)
+
+            // Make deployment guards true blockers with larger hit radius.
+            const podCollisionDist = enemy.kind === 'Deployment' ? 1.1 : 0.8
+            if (podDistance < podCollisionDist) {
+              pod.isRecovering = true
+              pod.recoverTime = enemy.kind === 'Deployment' ? 260 : 180
+              projectile.cleanup(this.scene.scene)
+              this.projectileManager.projectiles.splice(i, 1)
+              consumedByGuard = true
+              break
+            }
+          }
+
+          if (consumedByGuard) {
+            break
+          }
+        }
+
         // Check collision with main enemy mesh
         const distance = projectile.position.distanceTo(enemy.mesh.position)
         const collisionDist = 1.5
 
         if (distance < collisionDist) {
-          // Check if this is an orbital pod
-          if (enemy.orbitalPods) {
-            let hitPod = false
-            for (const pod of enemy.orbitalPods) {
-              const podWorldPos = new THREE.Vector3()
-              pod.mesh.getWorldPosition(podWorldPos)
-              const podDistance = projectile.position.distanceTo(podWorldPos)
-
-              if (podDistance < 0.8) {
-                // Hit a pod
-                hitPod = true
-                pod.isRecovering = true
-                pod.recoverTime = 180 // 3 seconds at 60 FPS
-
-                projectile.cleanup(this.scene.scene)
-                this.projectileManager.projectiles.splice(i, 1)
-                break
-              }
-            }
-
-            if (hitPod) {
-              break
-            }
-          }
-
           if (distance < collisionDist) {
             // Hit the main enemy
             this.deleteEnemy(enemy, j)

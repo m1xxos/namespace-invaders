@@ -91,7 +91,7 @@ func GetResourcesInNamespace(namespace string) ([]Resource, error) {
 					if deploymentName, ok := rsToDeployment[owner.Name]; ok {
 						deploymentOwnerPods[deploymentName] = append(
 							deploymentOwnerPods[deploymentName],
-							string(p.UID),
+							p.Name,
 						)
 					}
 				}
@@ -144,7 +144,7 @@ func GetResourcesInNamespace(namespace string) ([]Resource, error) {
 				for _, p := range pods.Items {
 					for _, owner := range p.OwnerReferences {
 						if owner.Kind == "ReplicaSet" && owner.Name == rs.Name {
-							ownerPods = append(ownerPods, string(p.UID))
+							ownerPods = append(ownerPods, p.Name)
 							break
 						}
 					}
