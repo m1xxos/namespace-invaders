@@ -221,3 +221,142 @@ metadata:
 type: Opaque
 stringData:
   token: gamma-token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: hashicorp/http-echo:1.0.0
+        args:
+        - "-text=namespace-invaders-api"
+        ports:
+        - containerPort: 5678
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: workers-rs
+  namespace: default
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      tier: workers
+  template:
+    metadata:
+      labels:
+        tier: workers
+    spec:
+      containers:
+      - name: workers
+        image: busybox:1.36
+        command: [ "sh", "-c", "while true; do sleep 3600; done" ]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: queue-statefulset
+  namespace: default
+spec:
+  serviceName: queue
+  replicas: 2
+  selector:
+    matchLabels:
+      app: queue
+  template:
+    metadata:
+      labels:
+        app: queue
+    spec:
+      containers:
+      - name: queue
+        image: redis:7.0
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  namespace: default
+spec:
+  selector:
+    app: api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5678
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-ingress
+  namespace: default
+spec:
+  rules:
+  - host: api.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-config-1
+  namespace: default
+data:
+  mode: tactical
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-config-2
+  namespace: default
+data:
+  mode: adaptive
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-config-3
+  namespace: default
+data:
+  mode: swarming
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-secret-1
+  namespace: default
+type: Opaque
+stringData:
+  key: delta-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-secret-2
+  namespace: default
+type: Opaque
+stringData:
+  key: epsilon-token

@@ -49,9 +49,67 @@ export interface OrbitalPod {
 
 type GuardMode = 'replicaset' | 'deployment'
 
-export function createEnemyGeometry(kind: string): { geometry: THREE.BufferGeometry; color: number } {
+function hashString(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0
+  }
+  return hash
+}
+
+function pickGeometryVariant(kind: string, variant: number): THREE.BufferGeometry {
+  switch (kind) {
+    case 'Pod':
+      return [
+        new THREE.BoxGeometry(0.8, 0.8, 0.8),
+        new THREE.IcosahedronGeometry(0.62),
+        new THREE.CylinderGeometry(0.45, 0.45, 0.95, 8),
+      ][variant % 3]
+    case 'Deployment':
+      return [
+        new THREE.ConeGeometry(0.8, 1.5, 8),
+        new THREE.ConeGeometry(0.72, 1.6, 4),
+        new THREE.CylinderGeometry(0.2, 0.85, 1.35, 6),
+      ][variant % 3]
+    case 'ReplicaSet':
+      return [
+        new THREE.CylinderGeometry(1, 1, 0.5, 16),
+        new THREE.CylinderGeometry(0.86, 1.08, 0.62, 10),
+        new THREE.TorusGeometry(0.82, 0.22, 10, 20),
+      ][variant % 3]
+    case 'StatefulSet':
+      return [
+        new THREE.TorusGeometry(1, 0.4, 16, 32),
+        new THREE.TorusKnotGeometry(0.7, 0.22, 80, 10),
+        new THREE.OctahedronGeometry(0.95),
+      ][variant % 3]
+    case 'ConfigMap':
+    case 'Secret':
+      return [
+        new THREE.OctahedronGeometry(0.7),
+        new THREE.DodecahedronGeometry(0.58),
+        new THREE.TetrahedronGeometry(0.82),
+      ][variant % 3]
+    case 'Service':
+    case 'Ingress':
+      return [
+        new THREE.DodecahedronGeometry(0.6),
+        new THREE.BoxGeometry(0.9, 0.45, 0.9),
+        new THREE.CylinderGeometry(0.62, 0.62, 0.42, 12),
+      ][variant % 3]
+    default:
+      return [
+        new THREE.SphereGeometry(0.7, 16, 16),
+        new THREE.IcosahedronGeometry(0.67),
+        new THREE.ConeGeometry(0.62, 1.3, 7),
+      ][variant % 3]
+  }
+}
+
+export function createEnemyGeometry(kind: string, name: string): { geometry: THREE.BufferGeometry; color: number } {
   let geometry: THREE.BufferGeometry
   let color = COLOR_MAP[kind] || 0xaaaaaa
+  const variant = hashString(`${kind}:${name}`)
 
   // Determine color for CRDs based on type name
   if (!COLOR_MAP[kind]) {
@@ -61,31 +119,7 @@ export function createEnemyGeometry(kind: string): { geometry: THREE.BufferGeome
     color = rgbColor.getHex()
   }
 
-  switch (kind) {
-    case 'Pod':
-      geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8)
-      break
-    case 'Deployment':
-      geometry = new THREE.ConeGeometry(0.8, 1.5, 8)
-      break
-    case 'ReplicaSet':
-      geometry = new THREE.CylinderGeometry(1, 1, 0.5, 16)
-      break
-    case 'StatefulSet':
-      geometry = new THREE.TorusGeometry(1, 0.4, 16, 32)
-      break
-    case 'ConfigMap':
-    case 'Secret':
-      geometry = new THREE.OctahedronGeometry(0.7)
-      break
-    case 'Service':
-    case 'Ingress':
-      geometry = new THREE.DodecahedronGeometry(0.6)
-      break
-    default:
-      // For CRDs: use sphere by default
-      geometry = new THREE.SphereGeometry(0.7, 16, 16)
-  }
+  geometry = pickGeometryVariant(kind, variant)
 
   return { geometry, color }
 }
@@ -101,7 +135,7 @@ export function createEnemy(
   scene: THREE.Scene,
   spawn?: EnemySpawnPosition,
 ): Enemy {
-  const { geometry, color } = createEnemyGeometry(resource.kind)
+  const { geometry, color } = createEnemyGeometry(resource.kind, resource.name)
   const material = new THREE.MeshPhongMaterial({
     color,
     emissive: color,

@@ -89,36 +89,65 @@ export class Player {
 
 function createK8sLogoModel(): THREE.Group {
   const group = new THREE.Group()
-  const mainMaterial = new THREE.MeshPhongMaterial({
-    color: 0x60a5fa,
-    emissive: 0x2563eb,
-    emissiveIntensity: 0.55,
-    shininess: 120,
+  const hullMaterial = new THREE.MeshPhongMaterial({
+    color: 0x7dd3fc,
+    emissive: 0x0ea5e9,
+    emissiveIntensity: 0.42,
+    shininess: 110,
+  })
+  const accentMaterial = new THREE.MeshPhongMaterial({
+    color: 0xbfdbfe,
+    emissive: 0x3b82f6,
+    emissiveIntensity: 0.28,
+    shininess: 90,
   })
 
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.14, 16, 32), mainMaterial)
-  ring.rotation.x = Math.PI / 2
-  ring.castShadow = true
-  group.add(ring)
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.4, 8), hullMaterial)
+  nose.rotation.x = -Math.PI / 2
+  nose.position.z = -0.75
+  nose.castShadow = true
+  group.add(nose)
 
-  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 16), mainMaterial)
-  hub.castShadow = true
-  group.add(hub)
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.42, 1.5, 12), hullMaterial)
+  body.rotation.x = -Math.PI / 2
+  body.position.z = 0.15
+  body.castShadow = true
+  group.add(body)
 
-  for (let i = 0; i < 7; i++) {
-    const angle = (i / 7) * Math.PI * 2
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 14), accentMaterial)
+  canopy.position.set(0, 0.22, -0.05)
+  canopy.scale.set(1.25, 0.7, 1)
+  canopy.castShadow = true
+  group.add(canopy)
 
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.9), mainMaterial)
-    spoke.rotation.y = angle
-    spoke.position.set(0.45 * Math.cos(angle), 0, 0.45 * Math.sin(angle))
-    spoke.castShadow = true
-    group.add(spoke)
+  const leftWing = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.08, 0.6), hullMaterial)
+  leftWing.position.set(-0.68, 0, 0.18)
+  leftWing.rotation.z = 0.08
+  leftWing.castShadow = true
+  group.add(leftWing)
 
-    const node = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), mainMaterial)
-    node.position.set(0.95 * Math.cos(angle), 0, 0.95 * Math.sin(angle))
-    node.castShadow = true
-    group.add(node)
-  }
+  const rightWing = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.08, 0.6), hullMaterial)
+  rightWing.position.set(0.68, 0, 0.18)
+  rightWing.rotation.z = -0.08
+  rightWing.castShadow = true
+  group.add(rightWing)
+
+  const leftEngine = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.58, 10), accentMaterial)
+  leftEngine.rotation.x = -Math.PI / 2
+  leftEngine.position.set(-0.55, -0.12, 0.76)
+  leftEngine.castShadow = true
+  group.add(leftEngine)
+
+  const rightEngine = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.58, 10), accentMaterial)
+  rightEngine.rotation.x = -Math.PI / 2
+  rightEngine.position.set(0.55, -0.12, 0.76)
+  rightEngine.castShadow = true
+  group.add(rightEngine)
+
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.55, 0.08), accentMaterial)
+  tail.position.set(0, 0.28, 0.65)
+  tail.castShadow = true
+  group.add(tail)
 
   group.scale.set(1, 1, 1)
   return group

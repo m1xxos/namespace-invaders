@@ -100,3 +100,66 @@ metadata:
 spec:
   message: "Enemy 8"
   value: 80
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-9
+  namespace: default
+spec:
+  message: "Enemy 9"
+  value: 90
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-10
+  namespace: default
+spec:
+  message: "Enemy 10"
+  value: 100
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-11
+  namespace: default
+spec:
+  message: "Enemy 11"
+  value: 110
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-12
+  namespace: default
+spec:
+  message: "Enemy 12"
+  value: 120
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-13
+  namespace: default
+spec:
+  message: "Enemy 13"
+  value: 130
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-14
+  namespace: default
+spec:
+  message: "Enemy 14"
+  value: 140
+---
+apiVersion: example.com/v1
+kind: SimpleResource
+metadata:
+  name: simple-resource-15
+  namespace: default
+spec:
+  message: "Enemy 15"
+  value: 150

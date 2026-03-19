@@ -119,10 +119,10 @@ const selectedNamespace = ref('')
 const loading = ref(false)
 const killCount = ref(0)
 const canvas = ref<HTMLCanvasElement | null>(null)
-const playerSpeed = ref(0.5)
-const enemySpeed = ref(0.015)
-const mapTiltDeg = ref(37)
-const playerModelScale = ref(1.0)
+const playerSpeed = ref(0.25)
+const enemySpeed = ref(0.02)
+const mapTiltDeg = ref(70)
+const playerModelScale = ref(0.7)
 let game: Game | null = null
 
 watch([playerSpeed, enemySpeed, mapTiltDeg, playerModelScale], () => {

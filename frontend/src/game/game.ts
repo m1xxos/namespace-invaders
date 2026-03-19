@@ -13,10 +13,10 @@ export interface GameSettings {
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
-  playerSpeed: 0.5,
-  enemySpeed: 0.015,
-  mapTiltDeg: 37,
-  playerModelScale: 1.0,
+  playerSpeed: 0.25,
+  enemySpeed: 0.02,
+  mapTiltDeg: 70,
+  playerModelScale: 0.7,
 }
 
 export class Game {

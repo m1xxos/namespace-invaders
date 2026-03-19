@@ -84,7 +84,7 @@ kubectl get all -n default --no-headers | head -10
 echo ""
 echo -e "${YELLOW}Starting docker-compose...${NC}"
 cd "$(dirname "$DEMO_DIR")"
-docker-compose up
+docker-compose up -d
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
